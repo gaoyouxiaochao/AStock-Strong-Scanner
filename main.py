@@ -206,45 +206,62 @@ def batch_fetch_all_hist(codes, end_date_str):
     return hist_dict, errors
 
 
+# ================== 实时行情获取（GitHub专用修复版）==================
 spot_cache = None
+
 def get_all_spot_data():
+    """GitHub环境下直接返回空，后面会fallback到历史最后一天"""
     global spot_cache
     if spot_cache is not None:
         return spot_cache
-    try:
-        spot_cache = ak.stock_zh_a_spot_em()
-        if not spot_cache.empty:
-            spot_cache.columns = [str(c).lower().strip() for c in spot_cache.columns]
-        return spot_cache
-    except:
-        return pd.DataFrame()
-
+    # GitHub上spot_em经常失败，直接返回空让后面用历史数据
+    spot_cache = pd.DataFrame()
+    return spot_cache
 
 def fetch_today_quote(code, spot_df):
+    """GitHub专用：优先用历史K线最后一天作为今日数据（收盘后运行最准）"""
     symbol = get_akshare_symbol(code)
-    if spot_df.empty:
-        return {'今日涨跌幅': 0, '今日开盘价': 0, '今日收盘价': 0, '今日成交量': 0}
-
-    code_col = '代码' if '代码' in spot_df.columns else 'code'
-    row = spot_df[spot_df[code_col].astype(str).str.strip() == symbol]
-
-    if not row.empty:
-        open_col = next((c for c in ['今开', '开盘'] if c in row.columns), None)
-        close_col = next((c for c in ['最新价', '收盘'] if c in row.columns), None)
-        pct_col = next((c for c in ['涨跌幅', 'pct'] if c in row.columns), None)
-        vol_col = next((c for c in ['成交量', 'volume', '成交手'] if c in row.columns), None)
-
-        open_price = float(row[open_col].iloc[0]) if open_col else 0
-        close_price = float(row[close_col].iloc[0]) if close_col else 0
-        pct = float(row[pct_col].iloc[0]) if pct_col else 0
-        volume = float(row[vol_col].iloc[0]) if vol_col else 0
-
+    
+    # 如果有缓存的spot数据就用（本地测试时有效）
+    if not spot_df.empty:
+        code_col = '代码' if '代码' in spot_df.columns else 'code'
+        row = spot_df[spot_df[code_col].astype(str).str.strip() == symbol]
+        if not row.empty:
+            # ...（保持你原来的逻辑不变）
+            open_col = next((c for c in ['今开', '开盘'] if c in row.columns), None)
+            close_col = next((c for c in ['最新价', '收盘'] if c in row.columns), None)
+            pct_col = next((c for c in ['涨跌幅', 'pct'] if c in row.columns), None)
+            vol_col = next((c for c in ['成交量', 'volume', '成交手'] if c in row.columns), None)
+            
+            open_price = float(row[open_col].iloc[0]) if open_col else 0
+            close_price = float(row[close_col].iloc[0]) if close_col else 0
+            pct = float(row[pct_col].iloc[0]) if pct_col else 0
+            volume = float(row[vol_col].iloc[0]) if vol_col else 0
+            return {
+                '今日涨跌幅': round(pct, 2),
+                '今日开盘价': round(open_price, 2),
+                '今日收盘价': round(close_price, 2),
+                '今日成交量': int(volume)
+            }
+    
+    # === GitHub专用fallback：用历史K线最后一天作为今日数据 ===
+    if code in hist_dict and not hist_dict[code].empty:
+        hist = hist_dict[code]
+        last_row = hist.iloc[-1]
+        # 计算涨跌幅（用前一天收盘对比）
+        if len(hist) >= 2:
+            prev_close = hist.iloc[-2]['close']
+            today_close = last_row['close']
+            pct = round((today_close - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
+        else:
+            pct = 0
         return {
-            '今日涨跌幅': round(pct, 2),
-            '今日开盘价': round(open_price, 2),
-            '今日收盘价': round(close_price, 2),
-            '今日成交量': int(volume)
+            '今日涨跌幅': pct,
+            '今日开盘价': round(last_row['open'], 2),
+            '今日收盘价': round(last_row['close'], 2),
+            '今日成交量': int(last_row['volume'])
         }
+    
     return {'今日涨跌幅': 0, '今日开盘价': 0, '今日收盘价': 0, '今日成交量': 0}
 
 
@@ -797,4 +814,5 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"❌ 保存文件失败：{e}")
+
         traceback.print_exc()

@@ -716,8 +716,12 @@ if __name__ == "__main__":
         df_volume = df_volume[['放量排名', '股票代码', '股票名称', '最新价', '今日涨跌幅%', '今日成交量(手)', '20日均量(手)', '放量倍数', '总分', '评级', 'K 线形态', 'ADX 趋势强度']]
     else:
         df_volume = pd.DataFrame(columns=['放量排名', '股票代码', '股票名称', '最新价', '今日涨跌幅%', '今日成交量(手)', '20日均量(手)', '放量倍数', '总分', '评级', 'K 线形态', 'ADX 趋势强度'])
+    # ================== 保存结果（适配 GitHub Actions）==================
     timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-    output_path = OUTPUT_DIR / f"自选强势股_v7.9_MultiSource_Final_Stable_{timestamp}.xlsx"
+    
+    # 使用相对路径，保存在 results/ 文件夹
+    output_path = OUTPUT_DIR / f"自选强势股_v7.9_Final_Stable_{timestamp}.xlsx"
+    
     try:
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
             df_final.to_excel(writer, sheet_name='股票扫描结果', index=False)
@@ -727,16 +731,21 @@ if __name__ == "__main__":
             df_final['评级'].value_counts().to_frame('数量').to_excel(writer, sheet_name='评级分布')
             if errors:
                 pd.DataFrame({'错误详情': errors}).to_excel(writer, sheet_name='错误记录', index=False)
+        
         print(f"📊 结果已保存至：{output_path}")
         print(" 📌 新增Sheet：今日放量Top20（Stable版）")
+
+        # 打印前5名（方便在 Actions 日志中查看）
         top_stocks = df_final.head(5)[['股票名称', '股票代码', '评级', '总分', 'K 线形态']]
         print("\n🏆 排名前5的强势股：")
         print(top_stocks.to_string(index=False))
+
         if not df_volume.empty:
             print("\n🔥 今日放量Top5预筛选：")
             print(df_volume.head(5)[['放量排名', '股票名称', '放量倍数', '今日涨跌幅%', '总分', '评级']].to_string(index=False))
         else:
             print("\n🔥 今日无明显放量股票（放量倍数≥1.6）")
+
     except Exception as e:
         print(f"❌ 保存文件失败：{e}")
         traceback.print_exc()

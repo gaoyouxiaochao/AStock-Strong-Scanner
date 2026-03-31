@@ -31,7 +31,7 @@ import baostock as bs
 
 # ================== 配置区域 ==================
 POSSIBLE_INPUTS = [
-    Path("输入股票代码及名称清单.xlsx"),      # ← 必须是这个名字！不能改
+    Path("输入股票代码及名称清单v1.xlsx"),      # ← 必须是这个名字！不能改
     Path("自选股票清单.xlsx"),
 ]
 OUTPUT_DIR = Path("results")

@@ -31,10 +31,10 @@ import baostock as bs
 
 # ================== 配置区域 ==================
 POSSIBLE_INPUTS = [
-    Path(r"D:\输入股票代码及名称清单.xlsx"),
-    Path("输入股票代码及名称清单.xlsx"),
+    Path("输入股票代码及名称清单.xlsx"),      # ← 必须是这个名字！不能改
+    Path("自选股票清单.xlsx"),
 ]
-OUTPUT_DIR = Path("D:/")
+OUTPUT_DIR = Path("results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CACHE_DIR = Path("stock_cache_v79")

@@ -38,9 +38,6 @@ POSSIBLE_INPUTS = [
 OUTPUT_DIR = Path("results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CACHE_DIR = Path("stock_cache_v79")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
 MAX_HIST_DAYS = 150
 MAX_WORKERS = 1
 MIN_HIST_DAYS = 30
@@ -749,3 +746,29 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ 保存文件失败：{e}")
         traceback.print_exc()
+
+    # ================== 保存结果后自动提交到 GitHub（关键！）==================
+    try:
+        import subprocess
+        print("🔄 正在将结果提交到 GitHub...")
+
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
+        subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+
+        subprocess.run(["git", "add", "results/"], check=True)
+        result = subprocess.run(["git", "commit", "-m", f"自动更新: A股强势股扫描 {timestamp}"], 
+                                capture_output=True, text=True)
+
+        if result.returncode == 0:
+            push_result = subprocess.run(["git", "push"], capture_output=True, text=True)
+            if push_result.returncode == 0:
+                print("✅ 结果已成功推送到 GitHub仓库！")
+            else:
+                print(f"⚠️ push失败: {push_result.stderr}")
+        elif "nothing to commit" in result.stderr:
+            print("ℹ️ 没有新变化，无需提交")
+        else:
+            print(f"⚠️ commit失败: {result.stderr}")
+
+    except Exception as e:
+        print(f"⚠️ 自动提交失败（不影响扫描结果）: {e}")
